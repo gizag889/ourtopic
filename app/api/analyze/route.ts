@@ -86,7 +86,7 @@ export async function POST(request: Request) {
       try {
         // Embed all tweets text
         const { embeddings: tweetEmbeddings } = await embedMany({
-          model: google.textEmbeddingModel('text-embedding-004'),
+          model: google.textEmbeddingModel('gemini-embedding-001'),
           values: originalTweets.map(t => t.text)
         });
 
@@ -94,7 +94,7 @@ export async function POST(request: Request) {
         enhancedAxes = await Promise.all(object.axes.map(async (axis) => {
           // Embed the pole labels
           const { embeddings: poleEmbeddings } = await embedMany({
-            model: google.textEmbeddingModel('text-embedding-004'),
+            model: google.textEmbeddingModel('gemini-embedding-001'),
             values: axis.poles
           });
 
