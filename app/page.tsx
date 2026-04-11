@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Search, Loader2 } from 'lucide-react';
+import { Search, Loader2, Download } from 'lucide-react';
 import { AxisCard, AxisData } from '@/components/AxisCard'; // Import from aliases won't work perfectly unless tsconfig paths are set, usually @/components is default.
 // Let's rely on standard imports if we aren't sure, although default nextjs app has @/* mapped to ./*
 
@@ -74,7 +74,7 @@ export default function Home() {
         </div>
 
         {/* Search Input */}
-        <form onSubmit={handleAnalyze} className="relative max-w-2xl mx-auto mb-16">
+        <form onSubmit={handleAnalyze} className="relative max-w-2xl mx-auto mb-16 print:hidden">
           <div className="relative flex items-center">
             <Search className="absolute left-4 text-zinc-400" size={20} />
             <input
@@ -120,9 +120,18 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-2xl font-bold tracking-tight">Identified Axes</h2>
-              <span className="text-sm text-zinc-500 dark:text-zinc-400">Select one to explore deeper</span>
+            <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 print:hidden">
+              <div>
+                <h2 className="text-2xl font-bold tracking-tight">Identified Axes</h2>
+                <span className="text-sm text-zinc-500 dark:text-zinc-400">Select one to explore deeper</span>
+              </div>
+              <button
+                onClick={() => window.print()}
+                className="flex items-center gap-2 px-5 py-2.5 bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 rounded-xl transition-all text-sm font-bold shadow-sm hover:shadow-md active:scale-95"
+              >
+                <Download size={18} />
+                PDF形式で保存
+              </button>
             </div>
 
             <div className="grid gap-6 md:grid-cols-1">
