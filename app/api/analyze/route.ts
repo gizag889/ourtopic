@@ -90,6 +90,7 @@ export async function POST(request: Request) {
           values: originalTweets.map(t => t.text)
         });
 
+        
         // Map over each generated axis
         enhancedAxes = await Promise.all(object.axes.map(async (axis) => {
           // Embed the pole labels
@@ -103,11 +104,16 @@ export async function POST(request: Request) {
           let maxSim0 = -1;
           let maxSim1 = -1;
 
+          // Variables for medoid clustering
+          const group0: number[] = [];
+          const group1: number[] = [];
+
           // Find the highest cosine similarity for both poles
           for (let i = 0; i < originalTweets.length; i++) {
             const sim0 = cosineSimilarity(poleEmbeddings[0], tweetEmbeddings[i]);
             const sim1 = cosineSimilarity(poleEmbeddings[1], tweetEmbeddings[i]);
             
+            // For extreme opinions
             if (sim0 > maxSim0) {
               maxSim0 = sim0;
               bestTweetId0 = originalTweets[i].id;
@@ -116,11 +122,56 @@ export async function POST(request: Request) {
               maxSim1 = sim1;
               bestTweetId1 = originalTweets[i].id;
             }
+
+            // Assign to closest cluster
+            if (sim0 > sim1) {
+              group0.push(i);
+            } else {
+              group1.push(i);
+            }
           }
+
+          // Helper to calculate centroid and find medoid
+          const getMedoid = (groupIndices: number[]) => {
+            if (groupIndices.length === 0) return originalTweets[0].id; // Fallback
+            const dim = tweetEmbeddings[0].length;
+            const centroid = new Array(dim).fill(0);
+            
+            // Calculate sum
+            for (const idx of groupIndices) {
+              for (let d = 0; d < dim; d++) {
+                centroid[d] += tweetEmbeddings[idx][d];
+              }
+            }
+            // Average
+            for (let d = 0; d < dim; d++) {
+              centroid[d] /= groupIndices.length;
+            }
+
+            // Find closest to centroid (Euclidean distance min)
+            let minDist = Infinity;
+            let medoidId = originalTweets[0].id;
+
+            for (const idx of groupIndices) {
+              let distSq = 0;
+              for (let d = 0; d < dim; d++) {
+                distSq += Math.pow(tweetEmbeddings[idx][d] - centroid[d], 2);
+              }
+              if (distSq < minDist) {
+                minDist = distSq;
+                medoidId = originalTweets[idx].id;
+              }
+            }
+            return medoidId;
+          };
+
+          const medoidId0 = getMedoid(group0);
+          const medoidId1 = getMedoid(group1);
 
           return {
             ...axis,
-            representative_tweets: [bestTweetId0, bestTweetId1]
+            representative_tweets: [bestTweetId0, bestTweetId1],
+            medoid_tweets: [medoidId0, medoidId1]
           };
         }));
       } catch (embError) {

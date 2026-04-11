@@ -11,6 +11,7 @@ export interface AxisData {
   description: string;
   bridge_hint: string;
   representative_tweets?: [string, string];
+  medoid_tweets?: [string, string];
 }
 
 interface AxisCardProps {
@@ -57,23 +58,48 @@ export const AxisCard: React.FC<AxisCardProps> = ({ axis, isSelected, onSelect }
 
       {/* Representative Tweets (Shown only when selected) */}
       {isSelected && axis.representative_tweets && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6" onClick={(e) => e.stopPropagation()}>
-          <div className="flex flex-col">
-            <div className="text-xs font-bold text-blue-600 dark:text-blue-400 mb-2 uppercase tracking-wide text-center">
-              代表的な意見 ({axis.poles[0]})
+        <div className="space-y-6 mb-6" onClick={(e) => e.stopPropagation()}>
+          {/* Extreme Opinions */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="flex flex-col">
+              <div className="text-xs font-bold text-blue-600 dark:text-blue-400 mb-2 uppercase tracking-wide text-center">
+                先鋭的な意見 ({axis.poles[0]})
+              </div>
+              <div className="flex-1 rounded-xl overflow-hidden [&_.react-tweet-theme]:m-0! [&_.react-tweet-theme]:w-full! [&_.react-tweet-theme]:max-w-none!">
+                <Tweet id={axis.representative_tweets[0]} />
+              </div>
             </div>
-            <div className="flex-1 rounded-xl overflow-hidden [&_.react-tweet-theme]:m-0! [&_.react-tweet-theme]:w-full! [&_.react-tweet-theme]:max-w-none!">
-              <Tweet id={axis.representative_tweets[0]} />
+            <div className="flex flex-col">
+              <div className="text-xs font-bold text-rose-600 dark:text-rose-400 mb-2 uppercase tracking-wide text-center">
+                先鋭的な意見 ({axis.poles[1]})
+              </div>
+              <div className="flex-1 rounded-xl overflow-hidden [&_.react-tweet-theme]:m-0! [&_.react-tweet-theme]:w-full! [&_.react-tweet-theme]:max-w-none!">
+                <Tweet id={axis.representative_tweets[1]} />
+              </div>
             </div>
           </div>
-          <div className="flex flex-col">
-            <div className="text-xs font-bold text-rose-600 dark:text-rose-400 mb-2 uppercase tracking-wide text-center">
-              代表的な意見 ({axis.poles[1]})
+
+          {/* Medoid / Average Opinions */}
+          {axis.medoid_tweets && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-zinc-200 dark:border-zinc-800/50">
+              <div className="flex flex-col">
+                <div className="text-xs font-bold text-indigo-600 dark:text-indigo-400 mb-2 uppercase tracking-wide text-center">
+                  平均的な意見 ({axis.poles[0]}側)
+                </div>
+                <div className="flex-1 rounded-xl overflow-hidden [&_.react-tweet-theme]:m-0! [&_.react-tweet-theme]:w-full! [&_.react-tweet-theme]:max-w-none!">
+                  <Tweet id={axis.medoid_tweets[0]} />
+                </div>
+              </div>
+              <div className="flex flex-col">
+                <div className="text-xs font-bold text-fuchsia-600 dark:text-fuchsia-400 mb-2 uppercase tracking-wide text-center">
+                  平均的な意見 ({axis.poles[1]}側)
+                </div>
+                <div className="flex-1 rounded-xl overflow-hidden [&_.react-tweet-theme]:m-0! [&_.react-tweet-theme]:w-full! [&_.react-tweet-theme]:max-w-none!">
+                  <Tweet id={axis.medoid_tweets[1]} />
+                </div>
+              </div>
             </div>
-            <div className="flex-1 rounded-xl overflow-hidden [&_.react-tweet-theme]:m-0! [&_.react-tweet-theme]:w-full! [&_.react-tweet-theme]:max-w-none!">
-              <Tweet id={axis.representative_tweets[1]} />
-            </div>
-          </div>
+          )}
         </div>
       )}
       
