@@ -37,7 +37,7 @@ export async function POST(request: Request) {
       const readOnlyClient = twitterClient.readOnly;
       
       const response = await readOnlyClient.v2.search(topic, {
-        max_results: 20,
+        max_results: 80,
         'tweet.fields': ['text', 'lang'],
       });
       
