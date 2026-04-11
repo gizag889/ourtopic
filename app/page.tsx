@@ -83,14 +83,14 @@ export default function Home() {
         <div className="flex justify-center mb-8 print:hidden">
           <div className="bg-zinc-200 dark:bg-zinc-800 p-1 rounded-xl inline-flex">
             <button
-              onClick={() => setMode('twitter')}
+              onClick={() => { setMode('twitter'); setData(null); setSelectedAxisId(null); setError(null); }}
               className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-medium transition-all ${mode === 'twitter' ? 'bg-white dark:bg-zinc-900 shadow text-indigo-600 dark:text-indigo-400' : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100'}`}
             >
               <MessageCircle size={18} />
               X (Twitter)
             </button>
             <button
-              onClick={() => setMode('text')}
+              onClick={() => { setMode('text'); setData(null); setSelectedAxisId(null); setError(null); }}
               className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-medium transition-all ${mode === 'text' ? 'bg-white dark:bg-zinc-900 shadow text-indigo-600 dark:text-indigo-400' : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100'}`}
             >
               <FileText size={18} />
