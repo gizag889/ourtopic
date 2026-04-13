@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useMemo } from 'react';
-import { Loader2, Info } from 'lucide-react';
+import { Loader2, Info, Trash2 } from 'lucide-react';
 
 export interface DataPoint {
   id: string;
@@ -143,13 +143,33 @@ export const TopographyMap: React.FC = () => {
         </div>
       )}
       
-      {/* Refresh Button */}
-      <button 
-        onClick={fetchTopography} 
-        className="absolute top-6 right-6 px-4 py-2 bg-white/90 dark:bg-zinc-800/90 backdrop-blur rounded-xl text-xs font-bold uppercase tracking-wider border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-700 hover:scale-105 transition-all shadow-sm active:scale-95"
-      >
-        Refresh Map
-      </button>
+      {/* Controls */}
+      <div className="absolute top-6 right-6 flex gap-3">
+        <button 
+          onClick={async () => {
+            if (window.confirm("蓄積されたすべての分析データを削除しますか？\n（この操作は元に戻せません）")) {
+              setLoading(true);
+              try {
+                await fetch('/api/topography', { method: 'DELETE' });
+                await fetchTopography();
+              } catch (err: any) {
+                setError(err.message);
+                setLoading(false);
+              }
+            }
+          }}
+          className="flex items-center gap-1.5 px-3 py-2 bg-red-500/90 dark:bg-red-600/90 backdrop-blur rounded-xl text-xs font-bold uppercase tracking-wider text-white border border-red-400 dark:border-red-500 hover:bg-red-600 dark:hover:bg-red-700 hover:scale-105 transition-all shadow-sm active:scale-95"
+        >
+          <Trash2 size={14} />
+          Clear Data
+        </button>
+        <button 
+          onClick={fetchTopography} 
+          className="px-4 py-2 bg-white/90 dark:bg-zinc-800/90 backdrop-blur rounded-xl text-xs font-bold uppercase tracking-wider border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-700 hover:scale-105 transition-all shadow-sm active:scale-95"
+        >
+          Refresh Map
+        </button>
+      </div>
     </div>
   );
 };

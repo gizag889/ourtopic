@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { UMAP } from 'umap-js';
-import { getAllVectors } from '@/lib/vector-store';
+import { getAllVectors, clearVectors } from '@/lib/vector-store';
 
 export async function GET() {
   try {
@@ -46,6 +46,16 @@ export async function GET() {
     return NextResponse.json({ points });
   } catch (error: any) {
     console.error('UMAP error:', error);
+    return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
+  }
+}
+
+export async function DELETE() {
+  try {
+    await clearVectors();
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    console.error('Clear error:', error);
     return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
   }
 }

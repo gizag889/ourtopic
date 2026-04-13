@@ -55,3 +55,12 @@ export async function getAllVectors(): Promise<VectorDataPoint[]> {
     return [];
   }
 }
+
+export async function clearVectors() {
+  try {
+    await initVectorStore();
+    await fs.writeFile(FILE_PATH, JSON.stringify([]));
+  } catch (error) {
+    console.error('Failed to clear vectors:', error);
+  }
+}
