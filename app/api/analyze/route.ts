@@ -68,12 +68,41 @@ export async function POST(request: Request) {
           return true;
         });
 
-        // 3. リポスト（retweets）の数で降順にソートし、広く拡散された意見を優先する
-        tweets.sort((a, b) => {
-          const retweetsA = a.public_metrics?.retweet_count || 0;
-          const retweetsB = b.public_metrics?.retweet_count || 0;
-          return retweetsB - retweetsA;
+        // 3. 論理密度の計算と総合スコアによるソート
+        const logicalMarkers = [
+          // 転換点（Pivot）/ 逆接
+          '一方で', 'しかしながら', '別の側面では', 'とはいえ', 'それでも', '逆に', '反対に', '反面', 'だが', 'しかし',
+          // 条件文・理由
+          '仮に', 'とすれば', 'だとしたら', 'であれば', 'なぜなら', 'だからこそ', 'もし',
+          // 結論・追加
+          'したがって', 'そのため', 'ゆえに', 'さらに', '加えて'
+        ];
+
+        const calculateLogicDensity = (text: string) => {
+          let hitCount = 0;
+          for (const marker of logicalMarkers) {
+            let pos = 0;
+            while ((pos = text.indexOf(marker, pos)) !== -1) {
+              hitCount++;
+              pos += marker.length;
+            }
+          }
+          // 総文字数を単語数の近似として使用
+          return hitCount / (text.length || 1);
+        };
+
+        tweets.forEach((t: any) => {
+          t.logicDensity = calculateLogicDensity(t.text);
+          const retweets = t.public_metrics?.retweet_count || 0;
+          
+          // スコア算出ロジック:
+          // 拡散効果は大きすぎるため対数処理( log10(retweet+1) )してスケールを抑える
+          // density（0～0.1程度）を強調するため、(1 + density * 50) を掛ける
+          t.analysisScore = Math.log10(retweets + 1) * (1 + t.logicDensity * 50); 
         });
+
+        // スコアで降順ソート
+        tweets.sort((a, b) => b.analysisScore - a.analysisScore);
 
         // 有効な上位40件に絞る
         tweets = tweets.slice(0, 40);
