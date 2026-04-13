@@ -37,14 +37,48 @@ export async function POST(request: Request) {
       const twitterClient = new TwitterApi(twitterBearerToken);
       const readOnlyClient = twitterClient.readOnly;
       
-      const response = await readOnlyClient.v2.search(topic, {
-        max_results: 40,
-        'tweet.fields': ['text', 'lang'],
+      // 1. APIクエリレベルでの除外: リツイートやリプライを除外、日本語のみに限定
+      // （※Botはバズった投稿へのリプライとして湧くことが多いため、-is:reply が非常に有効です）
+      const searchQuery = `${topic} -is:retweet -is:reply lang:ja`;
+      
+      const response = await readOnlyClient.v2.search(searchQuery, {
+        max_results: 100, // 多めに取得して後でソートやフィルタリングをする
+        'tweet.fields': ['text', 'lang', 'public_metrics'],
       });
       
-      const tweets = response.data.data;
-      if (tweets && tweets.length > 0) {
-        originalTweets = tweets as any[];
+      let tweets = (response.data.data || []) as any[];
+
+      if (tweets.length > 0) {
+        // 2. プログラム（ヒューリスティック）による除外ロジック
+        const spamKeywords = ['プロフ見て', 'プロフにて', '固ツイ', '副業', '稼げる', 'http'];
+        
+        tweets = tweets.filter(t => {
+          // 極端に短い投稿を除外
+          if (t.text.length < 5) return false;
+          
+          // 日本語の文字（ひらがな・カタカナ・漢字）が含まれていない場合を除外
+          if (!/[\u3040-\u30FF\u4E00-\u9FFF]/.test(t.text)) return false;
+
+          // アラビア文字など（ゾンビによく使われる）が含まれている場合を除外
+          if (/[\u0600-\u06FF]/.test(t.text)) return false;
+
+          // 明らかなスパムキーワードやURLを含むものを除外
+          if (spamKeywords.some(kw => t.text.includes(kw))) return false;
+
+          return true;
+        });
+
+        // 3. リポスト（retweets）の数で降順にソートし、広く拡散された意見を優先する
+        tweets.sort((a, b) => {
+          const retweetsA = a.public_metrics?.retweet_count || 0;
+          const retweetsB = b.public_metrics?.retweet_count || 0;
+          return retweetsB - retweetsA;
+        });
+
+        // 有効な上位40件に絞る
+        tweets = tweets.slice(0, 40);
+        
+        originalTweets = tweets;
         tweetsText = tweets.map((t: any, index: number) => `[投稿${index + 1}]: ${t.text}`).join('\n');
       } else {
         tweetsText = `トピック「${topic}」に関連する投稿が見つかりませんでした。一般的な知識に基づいて分析してください。`;
