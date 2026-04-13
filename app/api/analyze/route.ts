@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { TwitterApi } from 'twitter-api-v2';
 import fs from 'fs/promises';
 import path from 'path';
+import { appendVectors } from '@/lib/vector-store';
 
 const axisSchema = z.object({
   id: z.string(),
@@ -89,6 +90,18 @@ export async function POST(request: Request) {
           model: google.textEmbeddingModel('gemini-embedding-001'),
           values: originalTweets.map(t => t.text)
         });
+
+        // Store vectors for Topography
+        const points = originalTweets.map((t, index) => ({
+          id: t.id,
+          text: t.text,
+          embedding: tweetEmbeddings[index],
+          metadata: {
+            source: 'X' as const,
+            parentId: topic
+          }
+        }));
+        await appendVectors(points);
 
         
         // Map over each generated axis

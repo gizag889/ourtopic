@@ -4,6 +4,7 @@ import { generateObject, embedMany, cosineSimilarity } from 'ai';
 import { z } from 'zod';
 import fs from 'fs/promises';
 import path from 'path';
+import { appendVectors } from '@/lib/vector-store';
 
 // Zod schemas (Same as analyze/route.ts)
 const axisSchema = z.object({
@@ -104,6 +105,18 @@ export async function POST(request: Request) {
           model: google.textEmbeddingModel('gemini-embedding-001'),
           values: chunks
         });
+
+        // Store vectors for Topography
+        const points = chunks.map((c, index) => ({
+          id: `note-chunk-${Date.now()}-${index}`, // Generate unique ID for the chunk
+          text: c,
+          embedding: chunkEmbeddings[index],
+          metadata: {
+            source: 'Note' as const,
+            parentId: topic
+          }
+        }));
+        await appendVectors(points);
 
         // Map over each generated axis
         enhancedAxes = await Promise.all(object.axes.map(async (axis) => {

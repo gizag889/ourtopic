@@ -19,6 +19,7 @@
     "react-dom": "19.2.4",
     "react-tweet": "^3.3.0",
     "twitter-api-v2": "^1.29.0",
+    "umap-js": "^1.4.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {

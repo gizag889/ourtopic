@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Search, Loader2, Download, MessageCircle, FileText } from 'lucide-react';
-import { AxisCard, AxisData } from '@/components/AxisCard'; // Import from aliases won't work perfectly unless tsconfig paths are set, usually @/components is default.
-// Let's rely on standard imports if we aren't sure, although default nextjs app has @/* mapped to ./*
+import { Search, Loader2, Download, MessageCircle, FileText, Map as MapIcon } from 'lucide-react';
+import { AxisCard, AxisData } from '@/components/AxisCard';
+import { TopographyMap } from '@/components/TopographyMap';
 
 interface AnalysisData {
   topic_summary: string;
@@ -12,7 +12,7 @@ interface AnalysisData {
 
 export default function Home() {
   const [topic, setTopic] = useState('');
-  const [mode, setMode] = useState<'twitter' | 'text'>('twitter');
+  const [mode, setMode] = useState<'twitter' | 'text' | 'map'>('twitter');
   const [pastedText, setPastedText] = useState('');
   const [loading, setLoading] = useState(false);
   const [loadingText, setLoadingText] = useState('');
@@ -96,11 +96,26 @@ export default function Home() {
               <FileText size={18} />
               長文分析 (手動ペースト)
             </button>
+            <button
+              onClick={() => { setMode('map'); setError(null); }}
+              className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-medium transition-all ${mode === 'map' ? 'bg-white dark:bg-zinc-900 shadow text-indigo-600 dark:text-indigo-400' : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100'}`}
+            >
+              <MapIcon size={18} />
+              マップを見る
+            </button>
           </div>
         </div>
 
-        {/* Input Form */}
-        <form onSubmit={handleAnalyze} className="relative max-w-2xl mx-auto mb-16 print:hidden">
+        {mode === 'map' ? (
+          <div className="animate-in slide-in-from-bottom-4 fade-in duration-700 mt-8">
+            <h2 className="text-2xl font-bold tracking-tight mb-2 text-center">全体マップ (Opinion Topography)</h2>
+            <p className="text-center text-zinc-500 mb-8 max-w-lg mx-auto">蓄積されたXの議論とNote記事等のテキストを統合的なベクトル空間で可視化しています。</p>
+            <TopographyMap />
+          </div>
+        ) : (
+          <>
+            {/* Input Form */}
+            <form onSubmit={handleAnalyze} className="relative max-w-2xl mx-auto mb-16 print:hidden">
           <div className="space-y-4">
             <div className="relative flex items-center">
               <Search className="absolute left-4 text-zinc-400" size={20} />
@@ -196,6 +211,8 @@ export default function Home() {
               ))}
             </div>
           </div>
+        )}
+          </>
         )}
       </main>
     </div>
