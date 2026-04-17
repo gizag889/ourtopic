@@ -20,6 +20,11 @@ const analysisSchema = z.object({
   axes: z.array(axisSchema).length(3),
 });
 
+// Xの検索クエリ生成用のスキーマ
+const twitterQuerySchema = z.object({
+  keywords: z.array(z.string()).min(1).max(5).describe("入力されたトピックと意味的に等価、または密接に関連する検索キーワード（元のトピックを示す単語も含む）。Xでの検索に使用するため、簡潔な名詞やフレーズにすること。"),
+});
+
 export async function POST(request: Request) {
   try {
     const { topic } = await request.json();
@@ -37,9 +42,20 @@ export async function POST(request: Request) {
       const twitterClient = new TwitterApi(twitterBearerToken);
       const readOnlyClient = twitterClient.readOnly;
       
-      // 1. APIクエリレベルでの除外: リツイートやリプライを除外、日本語のみに限定
+      // 1. Query Expansion（セマンティック検索のアプローチ）
+      // X API自体は文字列一致検索のみのため、LLMを用いて入力トピックから意味的に関連する同義語や略称のOR検索クエリを生成します
+      const { object: queryObj } = await generateObject({
+        model: google('gemini-3.1-pro-preview'),
+        schema: twitterQuerySchema,
+        prompt: `ユーザーが入力したトピックについて、X(旧Twitter)で検索するためのキーワード群を生成してください。トピックと文字列が完全に一致しなくても、意味的に同じ議論をしている投稿を抽出できるように、主要な同義語や略称を含めてください。\n\nトピック: ${topic}`,
+      });
+
+      const keywordGroup = queryObj.keywords.map(kw => `"${kw}"`).join(' OR ');
+
+      // 2. APIクエリレベルでの除外: リツイートやリプライを除外、日本語のみに限定
       // （※Botはバズった投稿へのリプライとして湧くことが多いため、-is:reply が非常に有効です）
-      const searchQuery = `${topic} -is:retweet -is:reply lang:ja`;
+      const searchQuery = `(${keywordGroup}) -is:retweet -is:reply lang:ja`;
+      console.log(`[Twitter Search] Expanded Query: ${searchQuery}`);
       
       const response = await readOnlyClient.v2.search(searchQuery, {
         max_results: 100, // 多めに取得して後でソートやフィルタリングをする
