@@ -20,14 +20,9 @@ const analysisSchema = z.object({
   axes: z.array(axisSchema).length(3),
 });
 
-// Xの検索クエリ生成用のスキーマ
-const twitterQuerySchema = z.object({
-  keywords: z.array(z.string()).min(1).max(5).describe("入力されたトピックと意味的に等価、または密接に関連する検索キーワード（元のトピックを示す単語も含む）。Xでの検索に使用するため、簡潔な名詞やフレーズにすること。"),
-});
-
 export async function POST(request: Request) {
   try {
-    const { topic } = await request.json();
+    let { topic } = await request.json();
 
     if (!topic) {
       return NextResponse.json({ error: 'Topic is required' }, { status: 400 });
@@ -42,20 +37,72 @@ export async function POST(request: Request) {
       const twitterClient = new TwitterApi(twitterBearerToken);
       const readOnlyClient = twitterClient.readOnly;
       
-      // 1. Query Expansion（セマンティック検索のアプローチ）
-      // X API自体は文字列一致検索のみのため、LLMを用いて入力トピックから意味的に関連する同義語や略称のOR検索クエリを生成します
-      const { object: queryObj } = await generateObject({
-        model: google('gemini-3.1-pro-preview'),
-        schema: twitterQuerySchema,
-        prompt: `ユーザーが入力したトピックについて、X(旧Twitter)で検索するためのキーワード群を生成してください。トピックと文字列が完全に一致しなくても、意味的に同じ議論をしている投稿を抽出できるように、主要な同義語や略称を含めてください。\n\nトピック: ${topic}`,
-      });
+      let isTweetUrl = false;
+      let sourceTweetText = "";
+      
+      const tweetUrlMatch = topic.match(/(?:x\.com|twitter\.com)\/[^/]+\/status\/(\d+)/i);
+      if (tweetUrlMatch) {
+        isTweetUrl = true;
+        try {
+          const tweetId = tweetUrlMatch[1];
+          console.log(`[Tweet Fetch] Fetching source tweet ID: ${tweetId}`);
+          const tweetData = await readOnlyClient.v2.singleTweet(tweetId, {
+            'tweet.fields': ['text']
+          });
+          if (tweetData.data) {
+            sourceTweetText = tweetData.data.text;
+            console.log(`[Tweet Fetch] Success: ${sourceTweetText}`);
+          }
+        } catch (e) {
+          console.warn('[Tweet Fetch] Failed to fetch source tweet:', e);
+        }
+      }
 
-      const keywordGroup = queryObj.keywords.map(kw => `"${kw}"`).join(' OR ');
+      // 1. Semantic Query Expansion: LLMを使って類義語・表記揺れを補完する
+      let expandedQueryPart = `"${topic}"`;
+      try {
+        console.log(`[Query Expansion] Expanding topic/url: ${topic}`);
+        const expansionSchema = z.object({
+          core_topic: z.string().describe("検索の主軸となるトピック名（例：ベーシックインカム、生成AIなど）。元入力がキーワードの場合はそのまま、ツイート内容の場合はその中心テーマ。"),
+          keywords: z.array(z.string()).min(1).max(4).describe("検索用キーワードの配列（主題トピックやその類義語など最大4つ）")
+        });
+
+        const promptText = isTweetUrl && sourceTweetText
+          ? `以下のツイートが議論している中心的なテーマを1つ抽出し、それをX（旧Twitter）で検索して多数の意見を収集するためのキーワード（類義語や表記揺れを含めて最大4つ）を考えてください。
+          
+          ツイート内容: 「${sourceTweetText}」
+          
+          検索漏れを防ぐための関連キーワードを配列で出力してください。`
+          : `「${topic}」というトピックについてX（旧Twitter）で検索します。
+この言葉そのものだけでなく、表記揺れ、略称、あるいはほぼ同じ意味で使われる類義語を考えてください。
+検索漏れを防ぐためのキーワードを、元の「${topic}」を必ず含めて最大4つ配列で出力してください。
+例: "ベーシックインカム" -> ["ベーシックインカム", "BI", "最低保障", "給付金"]
+例: "マイナ保険証" -> ["マイナ保険証", "マイナンバー保険証", "マイナンバーカード保険証"]`;
+
+        const { object: expanded } = await generateObject({
+          model: google('gemini-3.1-pro-preview'),
+          schema: expansionSchema,
+          prompt: promptText
+        });
+
+        if (expanded.core_topic) {
+          topic = expanded.core_topic; // Reassign overall topic so the UI shows the core topic
+        }
+
+        if (expanded.keywords && expanded.keywords.length > 0) {
+          // X API standard: ("A" OR "B" OR "C")
+          const validKeywords = expanded.keywords.map((k: string) => `"${k.replace(/"/g, '')}"`);
+          expandedQueryPart = `(${validKeywords.join(' OR ')})`;
+          console.log(`[Query Expansion] Success: topic=${topic}, query=${expandedQueryPart}`);
+        }
+      } catch (expansionError) {
+        console.warn('[Query Expansion] Failed, falling back to original topic:', expansionError);
+        expandedQueryPart = `"${topic}"`;
+      }
 
       // 2. APIクエリレベルでの除外: リツイートやリプライを除外、日本語のみに限定
       // （※Botはバズった投稿へのリプライとして湧くことが多いため、-is:reply が非常に有効です）
-      const searchQuery = `(${keywordGroup}) -is:retweet -is:reply lang:ja`;
-      console.log(`[Twitter Search] Expanded Query: ${searchQuery}`);
+      const searchQuery = `${expandedQueryPart} -is:retweet -is:reply lang:ja`;
       
       const response = await readOnlyClient.v2.search(searchQuery, {
         max_results: 100, // 多めに取得して後でソートやフィルタリングをする
@@ -196,10 +243,6 @@ export async function POST(request: Request) {
           let maxSim0 = -1;
           let maxSim1 = -1;
 
-          // Variables for medoid clustering
-          const group0: number[] = [];
-          const group1: number[] = [];
-
           // Find the highest cosine similarity for both poles
           for (let i = 0; i < originalTweets.length; i++) {
             const sim0 = cosineSimilarity(poleEmbeddings[0], tweetEmbeddings[i]);
@@ -214,56 +257,11 @@ export async function POST(request: Request) {
               maxSim1 = sim1;
               bestTweetId1 = originalTweets[i].id;
             }
-
-            // Assign to closest cluster
-            if (sim0 > sim1) {
-              group0.push(i);
-            } else {
-              group1.push(i);
-            }
           }
-
-          // Helper to calculate centroid and find medoid
-          const getMedoid = (groupIndices: number[]) => {
-            if (groupIndices.length === 0) return originalTweets[0].id; // Fallback
-            const dim = tweetEmbeddings[0].length;
-            const centroid = new Array(dim).fill(0);
-            
-            // Calculate sum
-            for (const idx of groupIndices) {
-              for (let d = 0; d < dim; d++) {
-                centroid[d] += tweetEmbeddings[idx][d];
-              }
-            }
-            // Average
-            for (let d = 0; d < dim; d++) {
-              centroid[d] /= groupIndices.length;
-            }
-
-            // Find closest to centroid (Euclidean distance min)
-            let minDist = Infinity;
-            let medoidId = originalTweets[0].id;
-
-            for (const idx of groupIndices) {
-              let distSq = 0;
-              for (let d = 0; d < dim; d++) {
-                distSq += Math.pow(tweetEmbeddings[idx][d] - centroid[d], 2);
-              }
-              if (distSq < minDist) {
-                minDist = distSq;
-                medoidId = originalTweets[idx].id;
-              }
-            }
-            return medoidId;
-          };
-
-          const medoidId0 = getMedoid(group0);
-          const medoidId1 = getMedoid(group1);
 
           return {
             ...axis,
-            representative_tweets: [bestTweetId0, bestTweetId1],
-            medoid_tweets: [medoidId0, medoidId1]
+            representative_tweets: [bestTweetId0, bestTweetId1]
           };
         }));
       } catch (embError) {

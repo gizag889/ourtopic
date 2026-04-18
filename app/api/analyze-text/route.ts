@@ -131,11 +131,7 @@ export async function POST(request: Request) {
           let maxSim0 = -1;
           let maxSim1 = -1;
 
-          // Variables for medoid clustering
-          const group0: number[] = [];
-          const group1: number[] = [];
-
-          // Find extremes and assign to groups
+          // Find extremes
           for (let i = 0; i < chunks.length; i++) {
             const sim0 = cosineSimilarity(poleEmbeddings[0], chunkEmbeddings[i]);
             const sim1 = cosineSimilarity(poleEmbeddings[1], chunkEmbeddings[i]);
@@ -148,52 +144,11 @@ export async function POST(request: Request) {
               maxSim1 = sim1;
               bestChunkIndex1 = i;
             }
-
-            if (sim0 > sim1) {
-              group0.push(i);
-            } else {
-              group1.push(i);
-            }
           }
-
-          // Medoid calculation function
-          const getMedoid = (groupIndices: number[]) => {
-            if (groupIndices.length === 0) return 0; // Fallback
-            const dim = chunkEmbeddings[0].length;
-            const centroid = new Array(dim).fill(0);
-            
-            for (const idx of groupIndices) {
-              for (let d = 0; d < dim; d++) {
-                centroid[d] += chunkEmbeddings[idx][d];
-              }
-            }
-            for (let d = 0; d < dim; d++) {
-              centroid[d] /= groupIndices.length;
-            }
-
-            let minDist = Infinity;
-            let medoidIdx = groupIndices[0];
-
-            for (const idx of groupIndices) {
-              let distSq = 0;
-              for (let d = 0; d < dim; d++) {
-                distSq += Math.pow(chunkEmbeddings[idx][d] - centroid[d], 2);
-              }
-              if (distSq < minDist) {
-                minDist = distSq;
-                medoidIdx = idx;
-              }
-            }
-            return medoidIdx;
-          };
-
-          const medoidIdx0 = getMedoid(group0);
-          const medoidIdx1 = getMedoid(group1);
 
           return {
             ...axis,
-            representative_texts: [chunks[bestChunkIndex0], chunks[bestChunkIndex1]],
-            medoid_texts: [chunks[medoidIdx0], chunks[medoidIdx1]]
+            representative_texts: [chunks[bestChunkIndex0], chunks[bestChunkIndex1]]
           };
         }));
       } catch (embError) {

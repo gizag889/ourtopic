@@ -123,7 +123,7 @@ export default function Home() {
                 type="text"
                 value={topic}
                 onChange={(e) => setTopic(e.target.value)}
-                placeholder={mode === 'twitter' ? "e.g., AI regulation, Remote Work, Universal Basic Income..." : "テーマ・論点を入力 (例: 生成AIの未来)"}
+                placeholder={mode === 'twitter' ? "e.g., AI regulation, または Xの投稿URL..." : "テーマ・論点を入力 (例: 生成AIの未来)"}
                 className="w-full pl-12 pr-32 py-4 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 shadow-sm transition-all text-lg placeholder-zinc-400"
                 disabled={loading}
               />
