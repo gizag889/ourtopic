@@ -228,42 +228,6 @@ export async function POST(request: Request) {
           }
         }));
         await appendVectors(points);
-
-        
-        // Map over each generated axis
-        enhancedAxes = await Promise.all(object.axes.map(async (axis) => {
-          // Embed the pole labels
-          const { embeddings: poleEmbeddings } = await embedMany({
-            model: google.textEmbeddingModel('gemini-embedding-001'),
-            values: axis.poles
-          });
-
-          let bestTweetId0 = originalTweets[0].id;
-          let bestTweetId1 = originalTweets[0].id;
-          let maxSim0 = -1;
-          let maxSim1 = -1;
-
-          // Find the highest cosine similarity for both poles
-          for (let i = 0; i < originalTweets.length; i++) {
-            const sim0 = cosineSimilarity(poleEmbeddings[0], tweetEmbeddings[i]);
-            const sim1 = cosineSimilarity(poleEmbeddings[1], tweetEmbeddings[i]);
-            
-            // For extreme opinions
-            if (sim0 > maxSim0) {
-              maxSim0 = sim0;
-              bestTweetId0 = originalTweets[i].id;
-            }
-            if (sim1 > maxSim1) {
-              maxSim1 = sim1;
-              bestTweetId1 = originalTweets[i].id;
-            }
-          }
-
-          return {
-            ...axis,
-            representative_tweets: [bestTweetId0, bestTweetId1]
-          };
-        }));
       } catch (embError) {
         console.error('Embedding error:', embError);
         // Fallback to normal axes if embedding fails

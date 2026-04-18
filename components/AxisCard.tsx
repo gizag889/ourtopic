@@ -10,7 +10,6 @@ export interface AxisData {
   poles: string[];
   description: string;
   bridge_hint: string;
-  representative_tweets?: [string, string];
   representative_texts?: [string, string];
 }
 
@@ -56,8 +55,8 @@ export const AxisCard: React.FC<AxisCardProps> = ({ axis, isSelected, onSelect }
         {axis.description}
       </p>
 
-      {/* Representative Tweets/Texts (Shown only when selected) */}
-      {isSelected && (axis.representative_tweets || axis.representative_texts) && (
+      {/* Representative Texts (Shown only when selected) */}
+      {isSelected && axis.representative_texts && (
         <div className="space-y-6 mb-6" onClick={(e) => e.stopPropagation()}>
           {/* Extreme Opinions */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -65,8 +64,7 @@ export const AxisCard: React.FC<AxisCardProps> = ({ axis, isSelected, onSelect }
               <div className="text-xs font-bold text-blue-600 dark:text-blue-400 mb-2 uppercase tracking-wide text-center">
                 先鋭的な意見 ({axis.poles[0]})
               </div>
-              <div className="flex-1 rounded-xl overflow-hidden [&_.react-tweet-theme]:m-0! [&_.react-tweet-theme]:w-full! [&_.react-tweet-theme]:max-w-none!">
-                {axis.representative_tweets && <Tweet id={axis.representative_tweets[0]} />}
+              <div className="flex-1 rounded-xl overflow-hidden">
                 {axis.representative_texts && (
                   <blockquote className="h-full p-4 bg-white dark:bg-zinc-800 border-l-4 border-blue-500 rounded-r-xl text-sm text-zinc-700 dark:text-zinc-300 shadow-sm leading-relaxed whitespace-pre-wrap">
                     {axis.representative_texts[0]}
@@ -78,8 +76,7 @@ export const AxisCard: React.FC<AxisCardProps> = ({ axis, isSelected, onSelect }
               <div className="text-xs font-bold text-rose-600 dark:text-rose-400 mb-2 uppercase tracking-wide text-center">
                 先鋭的な意見 ({axis.poles[1]})
               </div>
-              <div className="flex-1 rounded-xl overflow-hidden [&_.react-tweet-theme]:m-0! [&_.react-tweet-theme]:w-full! [&_.react-tweet-theme]:max-w-none!">
-                {axis.representative_tweets && <Tweet id={axis.representative_tweets[1]} />}
+              <div className="flex-1 rounded-xl overflow-hidden">
                 {axis.representative_texts && (
                   <blockquote className="h-full p-4 bg-white dark:bg-zinc-800 border-l-4 border-rose-500 rounded-r-xl text-sm text-zinc-700 dark:text-zinc-300 shadow-sm leading-relaxed whitespace-pre-wrap">
                     {axis.representative_texts[1]}
