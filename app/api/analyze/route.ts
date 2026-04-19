@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { google } from '@ai-sdk/google';
-import { generateObject, embedMany, cosineSimilarity } from 'ai';
+import { generateObject, embed, embedMany, cosineSimilarity } from 'ai';
 import { z } from 'zod';
 import { TwitterApi } from 'twitter-api-v2';
 import fs from 'fs/promises';
@@ -147,7 +147,34 @@ export async function POST(request: Request) {
           return true;
         });
 
-        // 3. 論理密度の計算と総合スコアによるソート
+        // 3. セマンティック・リランキングのためのベクトル化
+        const contextText = (isTweetUrl && sourceTweetText) ? sourceTweetText : topic;
+        let contextEmbedding: number[] | null = null;
+        let tweetEmbeddings: number[][] = [];
+        let useSimilarity = false;
+
+        if (tweets.length > 0) {
+          try {
+            console.log(`[Semantic Reranking] Embedding context...`);
+            const ctxResult = await embed({
+              model: google.textEmbeddingModel('gemini-embedding-001'),
+              value: contextText
+            });
+            contextEmbedding = ctxResult.embedding;
+
+            console.log(`[Semantic Reranking] Embedding ${tweets.length} candidate tweets...`);
+            const { embeddings } = await embedMany({
+              model: google.textEmbeddingModel('gemini-embedding-001'),
+              values: tweets.map(t => t.text)
+            });
+            tweetEmbeddings = embeddings;
+            useSimilarity = true;
+          } catch (e) {
+            console.warn('[Semantic Reranking] Embedding failed, falling back to basic scoring:', e);
+          }
+        }
+
+        // 4. 論理密度の計算と総合スコアによるソート
         const logicalMarkers = [
           // 転換点（Pivot）/ 逆接
           '一方で', 'しかしながら', '別の側面では', 'とはいえ', 'それでも', '逆に', '反対に', '反面', 'だが', 'しかし',
@@ -170,7 +197,7 @@ export async function POST(request: Request) {
           return hitCount / (text.length || 1);
         };
 
-        tweets.forEach((t: any) => {
+        tweets.forEach((t: any, index: number) => {
           t.logicDensity = calculateLogicDensity(t.text);
           const metrics = t.public_metrics || {};
           const retweets = metrics.retweet_count || 0;
@@ -183,10 +210,18 @@ export async function POST(request: Request) {
           // 各種エンゲージメント指標を合計（imp数は桁が大きいため0.1倍に調整）
           const totalEngagement = retweets + replies + likes + quotes + bookmarks + (impressions * 0.1);
           
+          let semanticMultiplier = 1;
+          if (useSimilarity && contextEmbedding && tweetEmbeddings.length > index) {
+             const sim = cosineSimilarity(contextEmbedding, tweetEmbeddings[index]);
+             // 類似度スコアを反映（マイナスは排除しつつ、差を際立たせるため2乗する）
+             semanticMultiplier = Math.max(0.01, Math.pow(Math.max(0, sim), 2) * 5); 
+          }
+
           // スコア算出ロジック:
           // 拡散効果は大きすぎるため対数処理( log10(totalEngagement+1) )してスケールを抑える
           // density（0～0.1程度）を強調するため、(1 + density * 50) を掛ける
-          t.analysisScore = Math.log10(totalEngagement + 1) * (1 + t.logicDensity * 50); 
+          // 文脈類似度のMultiplierを掛け合わせて最終スコアとする
+          t.analysisScore = Math.log10(totalEngagement + 1) * (1 + t.logicDensity * 50) * semanticMultiplier; 
         });
 
         // スコアで降順ソート
