@@ -107,11 +107,27 @@ export async function POST(request: Request) {
       const response = await readOnlyClient.v2.search(searchQuery, {
         max_results: 100, // 多めに取得して後でソートやフィルタリングをする
         'tweet.fields': ['text', 'lang', 'public_metrics'],
+        expansions: ['referenced_tweets.id'],
       });
       
       let tweets = (response.data.data || []) as any[];
+      const includedTweets = (response.includes?.tweets || response.data?.includes?.tweets || []) as any[];
 
       if (tweets.length > 0) {
+        // 引用ツイートのテキストを結合する処理
+        tweets = tweets.map(t => {
+          if (t.referenced_tweets && t.referenced_tweets.length > 0) {
+            const quotedRef = t.referenced_tweets.find((ref: any) => ref.type === 'quoted');
+            if (quotedRef) {
+              const quotedTweet = includedTweets.find((inc: any) => inc.id === quotedRef.id);
+              if (quotedTweet) {
+                // 引用文脈を追加し、一つのテキストとして処理させる
+                t.text = `${t.text}\n\n（文脈としての引用ツイート：${quotedTweet.text}）`;
+              }
+            }
+          }
+          return t;
+        });
         // 2. プログラム（ヒューリスティック）による除外ロジック
         const spamKeywords = ['プロフ見て', 'プロフにて', '固ツイ', '副業', '稼げる', 'http'];
         
@@ -156,12 +172,21 @@ export async function POST(request: Request) {
 
         tweets.forEach((t: any) => {
           t.logicDensity = calculateLogicDensity(t.text);
-          const retweets = t.public_metrics?.retweet_count || 0;
+          const metrics = t.public_metrics || {};
+          const retweets = metrics.retweet_count || 0;
+          const replies = metrics.reply_count || 0;
+          const likes = metrics.like_count || 0;
+          const impressions = metrics.impression_count || 0;
+          const quotes = metrics.quote_count || 0;
+          const bookmarks = metrics.bookmark_count || 0;
+          
+          // 各種エンゲージメント指標を合計（imp数は桁が大きいため0.1倍に調整）
+          const totalEngagement = retweets + replies + likes + quotes + bookmarks + (impressions * 0.1);
           
           // スコア算出ロジック:
-          // 拡散効果は大きすぎるため対数処理( log10(retweet+1) )してスケールを抑える
+          // 拡散効果は大きすぎるため対数処理( log10(totalEngagement+1) )してスケールを抑える
           // density（0～0.1程度）を強調するため、(1 + density * 50) を掛ける
-          t.analysisScore = Math.log10(retweets + 1) * (1 + t.logicDensity * 50); 
+          t.analysisScore = Math.log10(totalEngagement + 1) * (1 + t.logicDensity * 50); 
         });
 
         // スコアで降順ソート
