@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Search, Loader2, Download, MessageCircle, FileText, Map as MapIcon } from 'lucide-react';
+import { Search, Loader2, Download, MessageCircle, FileText, Map as MapIcon, Sprout } from 'lucide-react';
 import { AxisCard, AxisData } from '@/components/AxisCard';
 import { TopographyMap } from '@/components/TopographyMap';
 import { Tweet } from 'react-tweet';
@@ -25,6 +25,33 @@ export default function Home() {
   const [data, setData] = useState<AnalysisData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedAxisId, setSelectedAxisId] = useState<string | null>(null);
+  const [isSimplifying, setIsSimplifying] = useState(false);
+
+  const handleSimplify = async () => {
+    if (!data) return;
+    setIsSimplifying(true);
+    try {
+      const res = await fetch('/api/simplify', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Failed to simplify analysis');
+      }
+
+      const simplifiedData = await res.json();
+      setData(simplifiedData);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsSimplifying(false);
+    }
+  };
 
   const handleAnalyze = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -221,13 +248,23 @@ export default function Home() {
                 <h2 className="text-2xl font-bold tracking-tight">Identified Axes</h2>
                 <span className="text-sm text-zinc-500 dark:text-zinc-400">Select one to explore deeper</span>
               </div>
-              <button
-                onClick={() => window.print()}
-                className="flex items-center gap-2 px-5 py-2.5 bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 rounded-xl transition-all text-sm font-bold shadow-sm hover:shadow-md active:scale-95"
-              >
-                <Download size={18} />
-                PDF形式で保存
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={handleSimplify}
+                  disabled={isSimplifying}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-emerald-100 hover:bg-emerald-200 dark:bg-emerald-900/30 dark:hover:bg-emerald-900/50 text-emerald-700 dark:text-emerald-400 rounded-xl transition-all text-sm font-bold shadow-sm hover:shadow-md active:scale-95 disabled:opacity-50"
+                >
+                  {isSimplifying ? <Loader2 size={18} className="animate-spin" /> : <Sprout size={18} />}
+                  やさしい日本語に変換
+                </button>
+                <button
+                  onClick={() => window.print()}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 rounded-xl transition-all text-sm font-bold shadow-sm hover:shadow-md active:scale-95"
+                >
+                  <Download size={18} />
+                  PDF形式で保存
+                </button>
+              </div>
             </div>
 
             <div className="grid gap-6 md:grid-cols-1">
