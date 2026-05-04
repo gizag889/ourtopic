@@ -1,8 +1,23 @@
 'use client';
 
 import React from 'react';
-import { Lightbulb, ArrowRight, CheckCircle2 } from 'lucide-react';
-import { Tweet } from 'react-tweet';
+import { Lightbulb, CheckCircle2 } from 'lucide-react';
+
+export interface CoreAxiom {
+  statement: string;
+  why_it_is_core: string;
+  vulnerability: number;
+}
+
+export interface DeepAnalysis {
+  reasoning_process: {
+    abduction: string;
+    necessary_condition: string;
+  };
+  paradigm_name: string;
+  core_axioms: CoreAxiom[];
+  alternative_lens: string;
+}
 
 export interface AxisData {
   id: string;
@@ -11,6 +26,7 @@ export interface AxisData {
   description: string;
   bridge_hint: string;
   representative_texts?: [string, string];
+  deep_analysis?: DeepAnalysis;
 }
 
 interface AxisCardProps {
@@ -86,6 +102,85 @@ export const AxisCard: React.FC<AxisCardProps> = ({ axis, isSelected, onSelect }
             </div>
           </div>
 
+        </div>
+      )}
+
+      {/* Deep Analysis (Philosophical Insights) */}
+      {isSelected && axis.deep_analysis && (
+        <div className="mb-6 bg-slate-50 dark:bg-slate-900/40 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-slate-100 dark:bg-slate-800/60 px-4 py-3 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+            <h4 className="font-bold text-slate-800 dark:text-slate-200 text-sm tracking-wide flex items-center gap-2">
+              <span className="text-lg">👁️</span> 深層分析: 核心的公理 (Core Axioms)
+            </h4>
+            <div className="text-xs font-mono px-2 py-1 bg-slate-200 dark:bg-slate-700 rounded text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-slate-600">
+              {axis.deep_analysis.paradigm_name}
+            </div>
+          </div>
+          
+          <div className="p-4 space-y-5">
+            {/* Reasoning Process */}
+            <div className="space-y-3">
+              <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                <span>1.</span> 推論プロセス (Chain of Thought)
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                <div className="bg-white dark:bg-slate-800/80 p-3 rounded-lg border border-slate-100 dark:border-slate-700/50 shadow-sm">
+                  <span className="block text-xs font-bold text-slate-400 dark:text-slate-500 mb-1">Abduction (逆行推論)</span>
+                  <p className="text-slate-700 dark:text-slate-300 leading-relaxed text-[13px]">
+                    {axis.deep_analysis.reasoning_process.abduction}
+                  </p>
+                </div>
+                <div className="bg-white dark:bg-slate-800/80 p-3 rounded-lg border border-slate-100 dark:border-slate-700/50 shadow-sm">
+                  <span className="block text-xs font-bold text-slate-400 dark:text-slate-500 mb-1">Necessary Condition (必要条件)</span>
+                  <p className="text-slate-700 dark:text-slate-300 leading-relaxed text-[13px]">
+                    {axis.deep_analysis.reasoning_process.necessary_condition}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Core Axioms */}
+            <div className="space-y-3">
+              <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                <span>2.</span> 抽出された公理
+              </div>
+              <div className="space-y-3">
+                {axis.deep_analysis.core_axioms.map((axiom, idx) => (
+                  <div key={idx} className="bg-white dark:bg-slate-800/80 p-4 rounded-lg border border-slate-100 dark:border-slate-700/50 shadow-sm relative overflow-hidden group hover:border-indigo-300 dark:hover:border-indigo-700 transition-colors">
+                    {/* Vulnerability indicator */}
+                    <div 
+                      className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-indigo-500 to-purple-500" 
+                      style={{ opacity: Math.max(0.2, 1 - axiom.vulnerability) }}
+                      title={`Vulnerability: ${axiom.vulnerability} (低いほど強固)`}
+                    />
+                    <div className="pl-3">
+                      <div className="flex items-start justify-between mb-2 gap-4">
+                        <span className="font-bold text-slate-800 dark:text-slate-200">
+                          {axiom.statement}
+                        </span>
+                        <span className="shrink-0 text-[10px] font-mono bg-slate-100 dark:bg-slate-700/50 px-2 py-0.5 rounded text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-600" title="Vulnerability (0.0=不動, 1.0=可変)">
+                          Vuln: {axiom.vulnerability.toFixed(2)}
+                        </span>
+                      </div>
+                      <p className="text-[13px] text-slate-600 dark:text-slate-400 leading-relaxed">
+                        {axiom.why_it_is_core}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Alternative Lens */}
+            <div className="pt-3 border-t border-slate-200 dark:border-slate-700/50">
+               <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-2">
+                <span>3.</span> オルタナティヴな解釈
+              </div>
+              <p className="text-[13px] text-slate-700 dark:text-slate-300 italic bg-white/50 dark:bg-slate-800/50 p-3 rounded-lg border border-slate-100 dark:border-slate-700/30">
+                {axis.deep_analysis.alternative_lens}
+              </p>
+            </div>
+          </div>
         </div>
       )}
       

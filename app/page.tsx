@@ -4,11 +4,17 @@ import React, { useState } from 'react';
 import { Search, Loader2, Download, MessageCircle, FileText, Map as MapIcon } from 'lucide-react';
 import { AxisCard, AxisData } from '@/components/AxisCard';
 import { TopographyMap } from '@/components/TopographyMap';
+import { Tweet } from 'react-tweet';
 
 interface AnalysisData {
   topic_summary: string;
   axes: AxisData[];
 }
+
+const getTweetIdFromUrl = (url: string) => {
+  const match = url.match(/(?:twitter\.com|x\.com)\/[^/]+\/status\/(\d+)/);
+  return match ? match[1] : null;
+};
 
 export default function Home() {
   const [topic, setTopic] = useState('');
@@ -179,6 +185,30 @@ export default function Home() {
         {/* Results State */}
         {data && !loading && (
           <div className="animate-in slide-in-from-bottom-4 fade-in duration-700">
+            {/* Search Query Display */}
+            <div className="mb-8 p-6 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-sm">
+              <h2 className="text-sm font-bold text-zinc-500 dark:text-zinc-500 uppercase tracking-wider mb-4">分析対象</h2>
+              {(() => {
+                const tweetId = getTweetIdFromUrl(topic);
+                if (tweetId) {
+                  return (
+                    <div className="flex justify-center -mt-4 bg-zinc-50/50 dark:bg-zinc-800/30 rounded-xl border border-zinc-100 dark:border-zinc-800">
+                      <div className="max-w-md w-full" data-theme="light">
+                        <Tweet id={tweetId} />
+                      </div>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded-xl border border-zinc-100 dark:border-zinc-800">
+                    <p className="text-lg text-zinc-800 dark:text-zinc-200 font-medium">
+                      {topic}
+                    </p>
+                  </div>
+                );
+              })()}
+            </div>
+
             <div className="mb-8 p-6 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-sm">
               <h2 className="text-sm font-bold text-zinc-500 dark:text-zinc-500 uppercase tracking-wider mb-2">Topic Summary</h2>
               <p className="text-lg text-zinc-800 dark:text-zinc-200 leading-relaxed font-medium">
